@@ -2,7 +2,16 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import { ConfigService } from '@nestjs/config';
 import { RespondIO } from '@respond-io/typescript-sdk';
 
+interface ContactInfo {
+  id: number;
+  firstName: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+}
+
 interface ContactState {
+  contactInfo: ContactInfo;
   lastMessageId: number;
   lastPolledAt: Date;
 }
@@ -38,17 +47,51 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  onModuleInit() {
+  async onModuleInit() {
     const pollingEnabled = this.configService.get<string>('POLLING_ENABLED') === 'true';
     
     this.logger.log(`Polling configuration: ENABLED=${pollingEnabled}, CONTACTS=${this.CONTACTS_TO_MONITOR.length}`);
     
     if (pollingEnabled && this.CONTACTS_TO_MONITOR.length > 0) {
       this.logger.log(`Starting message polling for ${this.CONTACTS_TO_MONITOR.length} contacts: [${this.CONTACTS_TO_MONITOR.join(', ')}]`);
+      
+      // 각 contact의 정보를 미리 가져오기
+      await this.initializeContactInfo();
+      
       this.startPolling();
     } else {
       this.logger.warn('Message polling is disabled or no contacts configured');
     }
+  }
+
+  private async initializeContactInfo() {
+    this.logger.log('Initializing contact information...');
+    
+    for (const contactId of this.CONTACTS_TO_MONITOR) {
+      try {
+        const contactIdentifier = `id:${contactId}` as `id:${number}`;
+        const contact = await this.client.contacts.get(contactIdentifier);
+        
+        this.logger.log(`Loaded contact: ${contact.firstName} ${contact.lastName || ''} (ID: ${contact.id})`);
+        
+        // 초기 상태 설정 (메시지는 나중에 업데이트)
+        this.contactStates.set(contactId, {
+          contactInfo: {
+            id: contact.id,
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            email: contact.email,
+            phone: contact.phone,
+          },
+          lastMessageId: 0, // 초기값
+          lastPolledAt: new Date(),
+        });
+      } catch (error) {
+        this.logger.error(`Failed to load contact info for ${contactId}: ${error.message}`);
+      }
+    }
+    
+    this.logger.log(`Contact information loaded for ${this.contactStates.size} contacts`);
   }
 
   onModuleDestroy() {
@@ -115,7 +158,13 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
 
         // 상태 업데이트
         const latestMessageId = Math.max(...messages.map(m => m.messageId));
+        const currentState = this.contactStates.get(contactId);
+        
         this.contactStates.set(contactId, {
+          contactInfo: currentState?.contactInfo || {
+            id: parseInt(contactId),
+            firstName: 'Unknown',
+          },
           lastMessageId: latestMessageId,
           lastPolledAt: new Date(),
         });
@@ -127,7 +176,19 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleNewMessage(contactId: string, message: any) {
-    this.logger.log(`New message from contact ${contactId}:`, {
+    const state = this.contactStates.get(contactId);
+    const contactInfo = state?.contactInfo;
+    
+    this.logger.log(`New message from contact ${contactId}:`);
+    this.logger.log({
+      // Contact 정보
+      contact: {
+        id: contactInfo?.id,
+        name: `${contactInfo?.firstName || ''} ${contactInfo?.lastName || ''}`.trim(),
+        email: contactInfo?.email,
+        phone: contactInfo?.phone,
+      },
+      // Message 정보
       messageId: message.messageId,
       traffic: message.traffic,
       type: message.message?.type,
@@ -145,22 +206,22 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
   }
 
   // 자동 응답 예시 (테스트용)
-  private async sendAutoReply(contactId: string, incomingMessage: any) {
-    const contactIdentifier = `id:${contactId}` as `id:${number}`;
+//   private async sendAutoReply(contactId: string, incomingMessage: any) {
+//     const contactIdentifier = `id:${contactId}` as `id:${number}`;
     
-    try {
-      await this.client.messaging.send(contactIdentifier, {
-        message: {
-          type: 'text',
-          text: `메시지 확인했습니다: "${incomingMessage.message?.text}"`,
-        },
-      });
+//     try {
+//       await this.client.messaging.send(contactIdentifier, {
+//         message: {
+//           type: 'text',
+//           text: `메시지 확인했습니다: "${incomingMessage.message?.text}"`,
+//         },
+//       });
       
-      this.logger.log(`Auto-reply sent to contact ${contactId}`);
-    } catch (error) {
-      this.logger.error(`Failed to send auto-reply: ${error.message}`);
-    }
-  }
+//       this.logger.log(`Auto-reply sent to contact ${contactId}`);
+//     } catch (error) {
+//       this.logger.error(`Failed to send auto-reply: ${error.message}`);
+//     }
+//   }
 
   // 수동으로 특정 contact 폴링 (테스트용)
   async manualPoll(contactId: string) {
