@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { validationSchema } from './config/validation.schema';
 import { RespondIoModule } from './respond-io/respond-io.module';
 import { MessageModule } from './message/message.module';
+import { HealthCheckModule } from './health-check/health-check.module';
 
 @Module({
   imports: [
@@ -14,8 +15,10 @@ import { MessageModule } from './message/message.module';
         abortEarly: false, // 모든 에러를 한번에 표시
       },
     }),
+    HealthCheckModule,
     RespondIoModule,
     MessageModule,
   ],
 })
 export class AppModule {}
+
