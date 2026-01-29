@@ -1,20 +1,7 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RespondIO } from '@respond-io/typescript-sdk';
-
-interface ContactInfo {
-  id: number;
-  firstName: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-}
-
-interface ContactState {
-  contactInfo: ContactInfo;
-  lastMessageId: number;
-  lastPolledAt: Date;
-}
+import { ContactChannel, ContactInfo, ContactState } from './types/polling.types';
 
 @Injectable()
 export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
@@ -72,7 +59,12 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
         const contactIdentifier = `id:${contactId}` as `id:${number}`;
         const contact = await this.client.contacts.get(contactIdentifier);
         
+        // 채널 정보는 별도 API로 조회
+        const channelsResponse = await this.client.contacts.listChannels(contactIdentifier);
+        const channels = channelsResponse.items || [];
+        
         this.logger.log(`Loaded contact: ${contact.firstName} ${contact.lastName || ''} (ID: ${contact.id})`);
+        this.logger.log(`  Channels: ${channels.map(ch => ch.source).join(', ') || 'none'}`);
         
         // 초기 상태 설정 (메시지는 나중에 업데이트)
         this.contactStates.set(contactId, {
@@ -82,6 +74,7 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
             lastName: contact.lastName,
             email: contact.email,
             phone: contact.phone,
+            channels: channels,
           },
           lastMessageId: 0, // 초기값
           lastPolledAt: new Date(),
@@ -164,6 +157,7 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
           contactInfo: currentState?.contactInfo || {
             id: parseInt(contactId),
             firstName: 'Unknown',
+            channels: [],
           },
           lastMessageId: latestMessageId,
           lastPolledAt: new Date(),
@@ -187,6 +181,11 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
         name: `${contactInfo?.firstName || ''} ${contactInfo?.lastName || ''}`.trim(),
         email: contactInfo?.email,
         phone: contactInfo?.phone,
+        channels: contactInfo?.channels?.map(ch => ({
+          source: ch.source,
+          channelId: ch.id,
+          name: ch.name,
+        })) || [],
       },
       // Message 정보
       messageId: message.messageId,
@@ -195,14 +194,15 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
       timestamp: new Date().toISOString(),
     });
 
-    // 들어오는 메시지만 처리 (outgoing은 우리가 보낸 것)
-    if (message.traffic === 'incoming') {
-      // TODO: NATS로 발행하거나 다른 처리
-      this.logger.log(`Processing incoming message: ${JSON.stringify(message.message)}`);
+    this.logger.log(`Processing message: ${JSON.stringify(message.message)}`);
+    // // 들어오는 메시지만 처리 (outgoing은 우리가 보낸 것)
+    // if (message.traffic === 'incoming') {
+    //   // TODO: NATS로 발행하거나 다른 처리
+    //   this.logger.log(`Processing incoming message: ${JSON.stringify(message.message)}`);
       
-      // 예시: 자동 응답 (테스트용)
-      // await this.sendAutoReply(contactId, message);
-    }
+    //   // 예시: 자동 응답 (테스트용)
+    //   // await this.sendAutoReply(contactId, message);
+    // }
   }
 
   // 자동 응답 예시 (테스트용)
