@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RespondIO } from '@respond-io/typescript-sdk';
+import { toContactIdentifier } from './utils/contact-identifier.util';
 
 @Injectable()
 export class RespondIoService {
@@ -21,14 +22,8 @@ export class RespondIoService {
     try {
       this.logger.log(`Sending message to ${data.recipientId}`);
 
-      // Use SDK's messaging client
-      // contactId can be phone:+1234, email:user@email.com, or id:123
-      const contactIdentifier: `phone:${string}` | `email:${string}` | `id:${number}` = 
-        data.recipientId.includes('@') 
-          ? `email:${data.recipientId}` as `email:${string}`
-          : data.recipientId.startsWith('+') || /^\d+$/.test(data.recipientId)
-            ? `phone:${data.recipientId}` as `phone:${string}`
-            : `id:${parseInt(data.recipientId)}` as `id:${number}`;
+      // recipientId를 ContactIdentifier로 변환
+      const contactIdentifier = toContactIdentifier(data.recipientId);
 
       const response = await this.client.messaging.send(contactIdentifier, {
         message: {
