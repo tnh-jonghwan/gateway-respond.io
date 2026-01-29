@@ -4,14 +4,14 @@ import { RespondIoService } from '@domain/respond-io/respond-io.service';
 
 @Controller('api/messages')
 export class MessageController {
-  constructor(private readonly respondIoService: RespondIoService) {}
+  constructor(private readonly respondIoService: RespondIoService) { }
 
-  // starfruit -> respond.io
+  // starfruit -> gateway -> respond.io
   @Post('send')
   async sendMessage(@Body() dto: SendMessageDto) {
     try {
       const result = await this.respondIoService.sendMessage(dto);
-      
+
       return {
         success: true,
         messageId: result.messageId,

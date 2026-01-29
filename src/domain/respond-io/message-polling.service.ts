@@ -1,18 +1,15 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { RespondIO } from '@respond-io/typescript-sdk';
-import { ContactChannel, ContactInfo, ContactState } from './types/polling.types';
+import { ContactState } from './types/polling.types';
 
 @Injectable()
-export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
+export class MessagePollingService implements OnModuleInit {
   private readonly logger = new Logger(MessagePollingService.name);
   private readonly client: RespondIO;
-  private pollingInterval: NodeJS.Timeout | null = null;
   private readonly contactStates = new Map<string, ContactState>();
-  
-  // 설정
-  private readonly POLL_INTERVAL_MS = 6000; // 5초마다 폴링
-  private readonly CONTACTS_TO_MONITOR: string[] = []; // 모니터링할 contact IDs
+  private readonly POLLING_ENABLED: boolean;
 
   constructor(private readonly configService: ConfigService) {
     this.client = new RespondIO({
@@ -21,226 +18,112 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
       timeout: 30000,
     });
 
-    // 환경 변수에서 모니터링할 contacts 가져오기
-    const contactsStr = this.configService.get<string>('POLLING_CONTACTS');
-    this.logger.log(`POLLING_CONTACTS raw value: "${contactsStr}"`);
-    
-    if (contactsStr) {
-      this.CONTACTS_TO_MONITOR = contactsStr.split(',').map(id => id.trim());
-      this.logger.log(`Parsed contacts: [${this.CONTACTS_TO_MONITOR.join(', ')}]`);
-      this.logger.log(`Total contacts to monitor: ${this.CONTACTS_TO_MONITOR.length}`);
-    } else {
-      this.logger.warn('POLLING_CONTACTS is empty or undefined');
+    this.POLLING_ENABLED = this.configService.get<string>('POLLING_ENABLED') === 'true';
+  }
+
+  onModuleInit() {
+    this.logger.log(`Polling Service Initialized. Enabled: ${this.POLLING_ENABLED}`);
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async handleCron() {
+    if (!this.POLLING_ENABLED) {
+      return;
     }
-  }
 
-  async onModuleInit() {
-    const pollingEnabled = this.configService.get<string>('POLLING_ENABLED') === 'true';
-    
-    this.logger.log(`Polling configuration: ENABLED=${pollingEnabled}, CONTACTS=${this.CONTACTS_TO_MONITOR.length}`);
-    
-    if (pollingEnabled && this.CONTACTS_TO_MONITOR.length > 0) {
-      this.logger.log(`Starting message polling for ${this.CONTACTS_TO_MONITOR.length} contacts: [${this.CONTACTS_TO_MONITOR.join(', ')}]`);
-      
-      // 각 contact의 정보를 미리 가져오기
-      await this.initializeContactInfo();
-      
-      this.startPolling();
-    } else {
-      this.logger.warn('Message polling is disabled or no contacts configured');
-    }
-  }
-
-  private async initializeContactInfo() {
-    this.logger.log('Initializing contact information...');
-    
-    for (const contactId of this.CONTACTS_TO_MONITOR) {
-      try {
-        const contactIdentifier = `id:${contactId}` as `id:${number}`;
-        const contact = await this.client.contacts.get(contactIdentifier);
-        
-        // 채널 정보는 별도 API로 조회
-        const channelsResponse = await this.client.contacts.listChannels(contactIdentifier);
-        const channels = channelsResponse.items || [];
-        
-        this.logger.log(`Loaded contact: ${contact.firstName} ${contact.lastName || ''} (ID: ${contact.id})`);
-        this.logger.log(`  Channels: ${channels.map(ch => ch.source).join(', ') || 'none'}`);
-        
-        // 초기 상태 설정 (메시지는 나중에 업데이트)
-        this.contactStates.set(contactId, {
-          contactInfo: {
-            id: contact.id,
-            firstName: contact.firstName,
-            lastName: contact.lastName,
-            email: contact.email,
-            phone: contact.phone,
-            channels: channels,
-          },
-          lastMessageId: 0, // 초기값
-          lastPolledAt: new Date(),
-        });
-      } catch (error) {
-        this.logger.error(`Failed to load contact info for ${contactId}: ${error.message}`);
-      }
-    }
-    
-    this.logger.log(`Contact information loaded for ${this.contactStates.size} contacts`);
-  }
-
-  onModuleDestroy() {
-    this.stopPolling();
-  }
-
-  private startPolling() {
-    this.pollingInterval = setInterval(
-      () => this.pollMessages(),
-      this.POLL_INTERVAL_MS
-    );
-    
-    // 시작 시 한번 즉시 실행
-    this.pollMessages();
-  }
-
-  private stopPolling() {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = null;
-      this.logger.log('Polling stopped');
-    }
-  }
-
-  private async pollMessages() {
-    this.logger.debug(`Polling cycle started for ${this.CONTACTS_TO_MONITOR.length} contacts`);
-    
-    for (const contactId of this.CONTACTS_TO_MONITOR) {
-      try {
-        await this.pollContactMessages(contactId);
-      } catch (error) {
-        this.logger.error(
-          `Failed to poll messages for contact ${contactId}: ${error.message}`,
-          error.stack
-        );
-      }
-    }
-  }
-
-  private async pollContactMessages(contactId: string) {
-    const contactIdentifier = `id:${contactId}` as `id:${number}`;
-    
+    this.logger.debug('Starting periodic message polling (Global Sync)...');
     try {
-      // 최근 메시지 조회 (최대 10개)
+      await this.syncAllContacts();
+    } catch (error) {
+      this.logger.error('Error during global polling sync', error.stack);
+    }
+  }
+
+  /**
+   * 모든 활성 Contact를 조회하고, 각 Contact의 메시지를 동기화합니다.
+   */
+  async syncAllContacts() {
+    try {
+      // 1. 전체 Contact 목록 조회 (페이지네이션 고려하지 않음 - POC)
+      // TODO: 실제 운영 시 Cursor 페이지네이션 구현 필요
+      const contactsResponse = await this.client.contacts.list({
+        timezone: 'Asia/Seoul',
+        filter: {},
+      });
+      const contacts = contactsResponse.items || [];
+
+      this.logger.log(`Found ${contacts.length} contacts to sync.`);
+
+      // 2. 각 Contact 별 메시지 풀링 (Rate Limit 고려하여 순차 처리)
+      for (const contact of contacts) {
+        await this.syncContactMessages(String(contact.id));
+
+        // Rate Limiting 방지: 200ms 대기 (초당 5회 이하 유지)
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    } catch (error) {
+      this.logger.error('Failed to fetch contact list', error.stack);
+    }
+  }
+
+  /**
+   * 특정 Contact의 메시지를 가져와서 새로운 메시지가 있으면 처리합니다.
+   */
+  private async syncContactMessages(contactId: string) {
+    const contactIdentifier = `id:${contactId}` as `id:${number}`;
+
+    try {
+      // 최근 메시지 5개 조회
       const response = await this.client.messaging.list(contactIdentifier, {
-        limit: 10,
+        limit: 5,
       });
 
-      const messages = response.items;
+      const messages = response.items || [];
+      if (messages.length === 0) return;
+
+      // 상태 확인
       const state = this.contactStates.get(contactId);
+
+      // 최신 메시지 ID 찾기
+      const latestMessageId = Math.max(...messages.map(m => m.messageId));
 
       // 새로운 메시지 필터링
       const newMessages = state
         ? messages.filter(msg => msg.messageId > state.lastMessageId)
-        : messages;
+        : messages; // 첫 실행 시에는 모든 메시지를 "새로운 것"으로 간주하거나, 필요 시 로직 조정 가능
 
+      // 상태 업데이트
+      this.contactStates.set(contactId, {
+        ...state,
+        lastMessageId: latestMessageId,
+        lastPolledAt: new Date(),
+        contactInfo: state?.contactInfo || { id: Number(contactId) } as any, // 간소화
+      });
+
+      // 새 메시지 처리
       if (newMessages.length > 0) {
+        // 첫 실행(메모리에 상태 없음)일 경우, 너무 오래된 메시지는 무시하는 로직이 필요할 수 있음
+        // POC에서는 단순히 "메모리에 없으면 다 처리"하거나 "첫 실행은 Skip" 하는 등 정책 결정 필요
+        // 여기서는 "메모리에 없으면 -> 가장 최신 1개만 처리 or 전체 처리" 중 선택.
+        // 안전하게: state가 없으면 최신 메시지 ID만 기록하고 처리는 스킵(과거 메시지 홍수 방지)
+        if (!state) {
+          this.logger.log(`First sync for contact ${contactId}. Initializing state with messageId ${latestMessageId}.`);
+          return;
+        }
+
         this.logger.log(`Found ${newMessages.length} new message(s) for contact ${contactId}`);
-        
-        // 새 메시지 처리
         for (const message of newMessages) {
           await this.handleNewMessage(contactId, message);
         }
-
-        // 상태 업데이트
-        const latestMessageId = Math.max(...messages.map(m => m.messageId));
-        const currentState = this.contactStates.get(contactId);
-        
-        this.contactStates.set(contactId, {
-          contactInfo: currentState?.contactInfo || {
-            id: parseInt(contactId),
-            firstName: 'Unknown',
-            channels: [],
-          },
-          lastMessageId: latestMessageId,
-          lastPolledAt: new Date(),
-        });
       }
     } catch (error) {
-      this.logger.error(`Error polling contact ${contactId}:`, error.message);
-      throw error;
+      this.logger.error(`Error syncing messages for contact ${contactId}: ${error.message}`);
     }
   }
 
   private async handleNewMessage(contactId: string, message: any) {
-    const state = this.contactStates.get(contactId);
-    const contactInfo = state?.contactInfo;
-    
-    this.logger.log(`New message from contact ${contactId}:`);
-    this.logger.log({
-      // Contact 정보
-      contact: {
-        id: contactInfo?.id,
-        name: `${contactInfo?.firstName || ''} ${contactInfo?.lastName || ''}`.trim(),
-        email: contactInfo?.email,
-        phone: contactInfo?.phone,
-        channels: contactInfo?.channels?.map(ch => ({
-          source: ch.source,
-          channelId: ch.id,
-          name: ch.name,
-        })) || [],
-      },
-      // Message 정보
-      messageId: message.messageId,
-      traffic: message.traffic,
-      type: message.message?.type,
-      timestamp: new Date().toISOString(),
-    });
-
-    this.logger.log(`Processing message: ${JSON.stringify(message.message)}`);
-    // // 들어오는 메시지만 처리 (outgoing은 우리가 보낸 것)
-    // if (message.traffic === 'incoming') {
-    //   // TODO: NATS로 발행하거나 다른 처리
-    //   this.logger.log(`Processing incoming message: ${JSON.stringify(message.message)}`);
-      
-    //   // 예시: 자동 응답 (테스트용)
-    //   // await this.sendAutoReply(contactId, message);
-    // }
-  }
-
-  // 자동 응답 예시 (테스트용)
-//   private async sendAutoReply(contactId: string, incomingMessage: any) {
-//     const contactIdentifier = `id:${contactId}` as `id:${number}`;
-    
-//     try {
-//       await this.client.messaging.send(contactIdentifier, {
-//         message: {
-//           type: 'text',
-//           text: `메시지 확인했습니다: "${incomingMessage.message?.text}"`,
-//         },
-//       });
-      
-//       this.logger.log(`Auto-reply sent to contact ${contactId}`);
-//     } catch (error) {
-//       this.logger.error(`Failed to send auto-reply: ${error.message}`);
-//     }
-//   }
-
-  // 수동으로 특정 contact 폴링 (테스트용)
-  async manualPoll(contactId: string) {
-    this.logger.log(`Manual poll triggered for contact ${contactId}`);
-    await this.pollContactMessages(contactId);
-  }
-
-  // 폴링 상태 조회
-  getPollingStatus() {
-    return {
-      isActive: this.pollingInterval !== null,
-      interval: this.POLL_INTERVAL_MS,
-      monitoredContacts: this.CONTACTS_TO_MONITOR.length,
-      contacts: this.CONTACTS_TO_MONITOR,
-      contactStates: Array.from(this.contactStates.entries()).map(([id, state]) => ({
-        contactId: id,
-        lastMessageId: state.lastMessageId,
-        lastPolledAt: state.lastPolledAt,
-      })),
-    };
+    this.logger.log(`[New Message] Contact: ${contactId}, MsgId: ${message.messageId}, Type: ${message.message?.type}`);
+    this.logger.log(`Content: ${JSON.stringify(message.message)}`);
+    // TODO: 이벤트 발행 or 비즈니스 로직 호출
   }
 }
