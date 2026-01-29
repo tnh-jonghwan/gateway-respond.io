@@ -6,6 +6,7 @@ import { RespondIoService } from '@domain/respond-io/respond-io.service';
 export class MessageController {
   constructor(private readonly respondIoService: RespondIoService) {}
 
+  // starfruit -> respond.io
   @Post('send')
   async sendMessage(@Body() dto: SendMessageDto) {
     try {

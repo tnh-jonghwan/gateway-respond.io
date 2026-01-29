@@ -35,7 +35,7 @@ export class RespondIoService {
           type: 'text',
           text: data.content,
         },
-        // Optional: channelId if you want to specify channel
+        // channelId: '123', // <- 특정 채널 지정, 지정하지 않으면 가장 최근에 활성화된 채널을 자동 선택
       });
 
       this.logger.log(`Message sent successfully: ${response.messageId}`);
