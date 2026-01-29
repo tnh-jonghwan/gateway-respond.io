@@ -24,7 +24,7 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
   private readonly contactStates = new Map<string, ContactState>();
   
   // 설정
-  private readonly POLL_INTERVAL_MS = 5000; // 5초마다 폴링
+  private readonly POLL_INTERVAL_MS = 6000; // 5초마다 폴링
   private readonly CONTACTS_TO_MONITOR: string[] = []; // 모니터링할 contact IDs
 
   constructor(private readonly configService: ConfigService) {
