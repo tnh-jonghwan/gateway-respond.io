@@ -1,0 +1,5 @@
+{
+	"dependencies": {
+		"@respond-io/typescript-sdk": "^1.2.0"
+	}
+}
