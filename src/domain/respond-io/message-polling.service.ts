@@ -27,16 +27,24 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
 
     // 환경 변수에서 모니터링할 contacts 가져오기
     const contactsStr = this.configService.get<string>('POLLING_CONTACTS');
+    this.logger.log(`POLLING_CONTACTS raw value: "${contactsStr}"`);
+    
     if (contactsStr) {
       this.CONTACTS_TO_MONITOR = contactsStr.split(',').map(id => id.trim());
+      this.logger.log(`Parsed contacts: [${this.CONTACTS_TO_MONITOR.join(', ')}]`);
+      this.logger.log(`Total contacts to monitor: ${this.CONTACTS_TO_MONITOR.length}`);
+    } else {
+      this.logger.warn('POLLING_CONTACTS is empty or undefined');
     }
   }
 
   onModuleInit() {
     const pollingEnabled = this.configService.get<string>('POLLING_ENABLED') === 'true';
     
+    this.logger.log(`Polling configuration: ENABLED=${pollingEnabled}, CONTACTS=${this.CONTACTS_TO_MONITOR.length}`);
+    
     if (pollingEnabled && this.CONTACTS_TO_MONITOR.length > 0) {
-      this.logger.log(`Starting message polling for ${this.CONTACTS_TO_MONITOR.length} contacts`);
+      this.logger.log(`Starting message polling for ${this.CONTACTS_TO_MONITOR.length} contacts: [${this.CONTACTS_TO_MONITOR.join(', ')}]`);
       this.startPolling();
     } else {
       this.logger.warn('Message polling is disabled or no contacts configured');
@@ -66,6 +74,8 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async pollMessages() {
+    this.logger.debug(`Polling cycle started for ${this.CONTACTS_TO_MONITOR.length} contacts`);
+    
     for (const contactId of this.CONTACTS_TO_MONITOR) {
       try {
         await this.pollContactMessages(contactId);
@@ -164,6 +174,7 @@ export class MessagePollingService implements OnModuleInit, OnModuleDestroy {
       isActive: this.pollingInterval !== null,
       interval: this.POLL_INTERVAL_MS,
       monitoredContacts: this.CONTACTS_TO_MONITOR.length,
+      contacts: this.CONTACTS_TO_MONITOR,
       contactStates: Array.from(this.contactStates.entries()).map(([id, state]) => ({
         contactId: id,
         lastMessageId: state.lastMessageId,
