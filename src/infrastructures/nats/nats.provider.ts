@@ -34,19 +34,19 @@ export class NatsProvider implements OnModuleInit, OnModuleDestroy {
     
     this.logger.log(`NATS 서버에 연결 중: ${servers.join(', ')}`);
 
-    const nodeEnv = this.configService.get<string>(ENV_KEYS.NODE_ENV);
+    const NODE_ENV = this.configService.get<string>(ENV_KEYS.NODE_ENV);
 
     // Local 환경: user/password 인증
-    if (nodeEnv === NodeEnv.LOCAL || nodeEnv === NodeEnv.DEVELOPMENT) {
-      const user = this.configService.get<string>(ENV_KEYS.NATS_USER);
-      const pass = this.configService.get<string>(ENV_KEYS.NATS_PASSWORD);
+    if (NODE_ENV === NodeEnv.LOCAL || NODE_ENV === NodeEnv.DEVELOPMENT) {
+      const NATS_USER = this.configService.get<string>(ENV_KEYS.NATS_USER);
+      const NATS_PASSWORD = this.configService.get<string>(ENV_KEYS.NATS_PASSWORD);
 
-      if (user && pass) {
+      if (NATS_USER && NATS_PASSWORD) {
         this.logger.log('NATS User/Password 인증 사용');
         this.#natsConnection = await connect({
           servers,
-          user,
-          pass,
+          user: NATS_USER,
+          pass: NATS_PASSWORD,
           maxReconnectAttempts: -1,
           reconnectTimeWait: 2000,
           waitOnFirstConnect: true,
@@ -63,24 +63,24 @@ export class NatsProvider implements OnModuleInit, OnModuleDestroy {
       }
     } else {
       // Production 환경: JWT 인증
-      const authUrl = this.configService.get<string>(ENV_KEYS.NATS_AUTH_URL);
-      const accessKey = this.configService.get<string>(ENV_KEYS.NATS_ACCESS_KEY);
-      const secretKey = this.configService.get<string>(ENV_KEYS.NATS_SECRET_KEY);
+      const NATS_AUTH_URL = this.configService.get<string>(ENV_KEYS.NATS_AUTH_URL);
+      const NATS_ACCESS_KEY = this.configService.get<string>(ENV_KEYS.NATS_ACCESS_KEY);
+      const NATS_SECRET_KEY = this.configService.get<string>(ENV_KEYS.NATS_SECRET_KEY);
 
-      if (!authUrl || !accessKey || !secretKey) {
+      if (!NATS_AUTH_URL || !NATS_ACCESS_KEY || !NATS_SECRET_KEY) {
         throw new Error(
           'Production 환경에서는 NATS_AUTH_URL, NATS_ACCESS_KEY, NATS_SECRET_KEY가 필요합니다',
         );
       }
 
       this.logger.log('NATS JWT 인증 사용');
-      const jwt = await this.#getJWT(authUrl, accessKey, secretKey);
+      const JWT = await this.#getJWT(NATS_AUTH_URL, NATS_ACCESS_KEY, NATS_SECRET_KEY);
 
       this.#natsConnection = await connect({
         servers,
         authenticator: jwtAuthenticator(
-          jwt,
-          new TextEncoder().encode(secretKey),
+          JWT,
+          new TextEncoder().encode(NATS_SECRET_KEY),
         ),
         maxReconnectAttempts: -1,
         reconnectTimeWait: 2000,

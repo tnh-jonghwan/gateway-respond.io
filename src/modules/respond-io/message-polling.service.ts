@@ -13,8 +13,10 @@ export class MessagePollingService implements OnModuleInit {
   private readonly POLLING_ENABLED: boolean;
 
   constructor(private readonly configService: ConfigService) {
+    const API_TOKEN = this.configService.get<string>(ENV_KEYS.RESPOND_IO_API_KEY);
+    
     this.client = new RespondIO({
-      apiToken: this.configService.get<string>(ENV_KEYS.RESPOND_IO_API_KEY),
+      apiToken: API_TOKEN,
       maxRetries: 3,
       timeout: 30000,
     });
