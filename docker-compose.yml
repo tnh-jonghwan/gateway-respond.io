@@ -40,7 +40,7 @@ services:
       
       # Server
       PORT: 3001
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: ${NODE_ENV:-development}
       
       # NATS
       NATS_URL: nats://nats:4222

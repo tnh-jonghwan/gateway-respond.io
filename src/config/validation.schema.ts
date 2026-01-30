@@ -17,11 +17,11 @@ export const validationSchema = Joi.object({
   NATS_URL: Joi.string().default('nats://localhost:4222'),
   
   // JWT Auth (Production)
-  NATS_AUTH_URL: Joi.string().optional(),
-  NATS_ACCESS_KEY: Joi.string().optional(),
-  NATS_SECRET_KEY: Joi.string().optional(),
+  NATS_AUTH_URL: Joi.string().allow('').optional(),
+  NATS_ACCESS_KEY: Joi.string().allow('').optional(),
+  NATS_SECRET_KEY: Joi.string().allow('').optional(),
   
   // User/Password Auth (Local)
-  NATS_USER: Joi.string().optional(),
-  NATS_PASSWORD: Joi.string().optional(),
+  NATS_USER: Joi.string().allow('').optional(),
+  NATS_PASSWORD: Joi.string().allow('').optional(),
 });

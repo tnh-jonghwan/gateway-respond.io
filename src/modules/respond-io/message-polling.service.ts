@@ -50,8 +50,11 @@ export class MessagePollingService implements OnModuleInit {
       // 1. 전체 Contact 목록 조회 (페이지네이션 고려하지 않음 - POC)
       // TODO: 실제 운영 시 Cursor 페이지네이션 구현 필요
       const contactsResponse = await this.client.contacts.list({
+        search: '',
+        filter: {
+          $and: [],
+        },
         timezone: 'Asia/Seoul',
-        filter: {},
       });
       const contacts = contactsResponse.items || [];
 
