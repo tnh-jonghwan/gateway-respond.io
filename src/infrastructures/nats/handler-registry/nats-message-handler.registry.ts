@@ -22,15 +22,33 @@ export class NatsMessageHandlerRegistry implements OnModuleInit {
     this.logger.log('Scanning for NATS handlers...');
 
     const controllers = this.discoveryService.getControllers();
+    const providers = this.discoveryService.getProviders();
 
+    // Scan controllers
     controllers.forEach((wrapper: InstanceWrapper) => {
       const { instance } = wrapper;
+      if (!instance) {
+        return;
+      }
+      this.registerHandlers(instance);
+    });
 
+    // Scan providers  
+    providers.forEach((wrapper: InstanceWrapper) => {
+      const { instance } = wrapper;
       if (!instance) {
         return;
       }
 
-      this.registerHandlers(instance);
+      // Check if this provider has NATS handler metadata
+      const classMetadata = this.reflector.get(
+        NATS_HANDLER_METADATA,
+        instance.constructor,
+      );
+
+      if (classMetadata) {
+        this.registerHandlers(instance);
+      }
     });
 
     this.logger.log('NATS handler registration complete');
@@ -64,8 +82,6 @@ export class NatsMessageHandlerRegistry implements OnModuleInit {
         const fullSubject = classSubjectPrefix
           ? `${classSubjectPrefix}.${methodMetadata.subject}`
           : methodMetadata.subject;
-
-        this.logger.log(`Registering handler: ${fullSubject}`);
 
         // NATS 구독 등록
         this.natsService.subscribeAndReply(fullSubject, {

@@ -22,10 +22,10 @@ export class NatsService {
    */
   subscribeAndReply(subject: string, handlerOptions: HandlerOptions) {
     const msgQueue = this.natsProvider.natsConnection.subscribe(subject, {
-      queue: 'respondio-gateway-queue',
+      queue: 'RESPONDIO_GATEWAY_QUEUE',
     });
 
-    this.logger.log(`Subscribed to ${subject} (queue: respondio-gateway-queue)`);
+    this.logger.log(`Subscribed to ${subject} (queue: RESPONDIO_GATEWAY_QUEUE)`);
 
     (async () => {
       for await (const msg of msgQueue) {

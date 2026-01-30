@@ -5,8 +5,14 @@ import { MessagePollingService } from './message-polling.service';
 import { PollingController } from './polling.controller';
 
 @Module({
-  providers: [RespondIoService, MessagePollingService],
-  controllers: [RespondIoController, PollingController],
+  providers: [
+    RespondIoService,
+    MessagePollingService,
+  ],
+  controllers: [
+    RespondIoController,
+    PollingController,
+  ],
   exports: [RespondIoService, MessagePollingService],
 })
 export class RespondIoModule {}

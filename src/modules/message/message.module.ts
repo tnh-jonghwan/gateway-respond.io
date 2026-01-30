@@ -4,6 +4,6 @@ import { RespondIoModule } from '@modules/respond-io/respond-io.module';
 
 @Module({
   imports: [RespondIoModule],
-  controllers: [MessageController],
+  providers: [MessageController],
 })
 export class MessageModule {}
