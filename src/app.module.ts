@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { validationSchema } from '@config/validation.schema';
-import { RespondIoModule } from '@domain/respond-io/respond-io.module';
-import { MessageModule } from '@domain/message/message.module';
-import { HealthCheckModule } from '@domain/health-check/health-check.module';
+import { RespondIoModule } from '@modules/respond-io/respond-io.module';
+import { MessageModule } from '@modules/message/message.module';
+import { HealthCheckModule } from '@modules/health-check/health-check.module';
 
 @Module({
   imports: [

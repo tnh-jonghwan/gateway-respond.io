@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": false,
     "esModuleInterop": true,
     "paths": {
-      "@domain/*": ["src/domain/*"],
+      "@modules/*": ["src/modules/*"],
       "@config/*": ["src/config/*"]
     }
   }
