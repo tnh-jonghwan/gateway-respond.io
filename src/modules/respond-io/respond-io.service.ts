@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RespondIO } from '@respond-io/typescript-sdk';
+import { ENV_KEYS } from '@common/const/env.const';
 import { toContactIdentifier } from './utils/contact-identifier.util';
 
 @Injectable()
@@ -10,7 +11,7 @@ export class RespondIoService {
 
   constructor(private readonly configService: ConfigService) {
     this.client = new RespondIO({
-      apiToken: this.configService.get<string>('RESPOND_IO_API_KEY'),
+      apiToken: this.configService.get<string>(ENV_KEYS.RESPOND_IO_API_KEY),
       maxRetries: 3, // optional
       timeout: 30000, // optional
     });

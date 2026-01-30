@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+
+# Development files
+.git/
+.gitignore
+.vscode/
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+*.log
+logs/
+
+# Documentation
+README.md
+DOCKER.md
+NATS_IMPLEMENTATION_PLAN.md
+docs/
+
+# Test files
+*.test.ts
+*.spec.ts
+test/
+
+# MCP server
+mcp-server/
+
+# PM2
+ecosystem.config.js
+
+# Misc
+.DS_Store
+*.swp
+*.swo

@@ -5,6 +5,8 @@ import { validationSchema } from '@config/validation.schema';
 import { RespondIoModule } from '@modules/respond-io/respond-io.module';
 import { MessageModule } from '@modules/message/message.module';
 import { HealthCheckModule } from '@modules/health-check/health-check.module';
+import { NatsModule } from '@infrastructures/nats/nats.module';
+import { NatsHandlerRegistryModule } from '@infrastructures/nats/handler-registry/nats-handler-registry.module';
 
 @Module({
   imports: [
@@ -18,6 +20,11 @@ import { HealthCheckModule } from '@modules/health-check/health-check.module';
     }),
     ScheduleModule.forRoot(),
     HealthCheckModule,
+    
+    // NATS
+    NatsModule,
+    NatsHandlerRegistryModule,
+    
     RespondIoModule,
     MessageModule,
   ],

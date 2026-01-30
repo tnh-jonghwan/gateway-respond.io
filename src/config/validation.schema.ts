@@ -6,11 +6,22 @@ export const validationSchema = Joi.object({
   
   // 폴링 방식
   POLLING_ENABLED: Joi.string().valid('true', 'false').default('false'),
-  POLLING_CONTACTS: Joi.string().allow('').default(''), // comma-separated contact IDs
   
   // Server
   PORT: Joi.number().default(3001),
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
     .default('development'),
+  
+  // NATS
+  NATS_URL: Joi.string().default('nats://localhost:4222'),
+  
+  // JWT Auth (Production)
+  NATS_AUTH_URL: Joi.string().optional(),
+  NATS_ACCESS_KEY: Joi.string().optional(),
+  NATS_SECRET_KEY: Joi.string().optional(),
+  
+  // User/Password Auth (Local)
+  NATS_USER: Joi.string().optional(),
+  NATS_PASSWORD: Joi.string().optional(),
 });

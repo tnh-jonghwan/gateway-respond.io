@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { RespondIO } from '@respond-io/typescript-sdk';
+import { ENV_KEYS } from '@common/const/env.const';
 import { ContactState } from './types/polling.types';
 
 @Injectable()
@@ -13,12 +14,12 @@ export class MessagePollingService implements OnModuleInit {
 
   constructor(private readonly configService: ConfigService) {
     this.client = new RespondIO({
-      apiToken: this.configService.get<string>('RESPOND_IO_API_KEY'),
+      apiToken: this.configService.get<string>(ENV_KEYS.RESPOND_IO_API_KEY),
       maxRetries: 3,
       timeout: 30000,
     });
 
-    this.POLLING_ENABLED = this.configService.get<string>('POLLING_ENABLED') === 'true';
+    this.POLLING_ENABLED = this.configService.get<string>(ENV_KEYS.POLLING_ENABLED) === 'true';
   }
 
   onModuleInit() {

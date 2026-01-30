@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # NATS Server
+  nats:
+    image: nats:2.10-alpine
+    container_name: respondio-nats
+    ports:
+      - "4223:4222"  # Client connections (호스트:컨테이너)
+      - "8223:8222"  # HTTP monitoring
+      - "6223:6222"  # Cluster connections
+    command: >
+      --server_name=respondio-nats
+      --http_port=8222
+      -V
+    networks:
+      - respondio-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # respond.io Gateway
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: respondio-gateway
+    ports:
+      - "3001:3001"
+    environment:
+      # respond.io
+      RESPOND_IO_API_KEY: ${RESPOND_IO_API_KEY}
+      RESPOND_IO_CHANNEL_ID: ${RESPOND_IO_CHANNEL_ID:-}
+      
+      # Polling
+      POLLING_ENABLED: ${POLLING_ENABLED:-false}
+      
+      # Server
+      PORT: 3001
+      NODE_ENV: ${NODE_ENV:-production}
+      
+      # NATS
+      NATS_URL: nats://nats:4222
+      NATS_USER: ${NATS_USER:-}
+      NATS_PASSWORD: ${NATS_PASSWORD:-}
+      
+      # NATS JWT (Production)
+      NATS_AUTH_URL: ${NATS_AUTH_URL:-}
+      NATS_ACCESS_KEY: ${NATS_ACCESS_KEY:-}
+      NATS_SECRET_KEY: ${NATS_SECRET_KEY:-}
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - respondio-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/HealthCheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  respondio-network:
+    driver: bridge

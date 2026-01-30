@@ -14,9 +14,6 @@ RESPOND_IO_API_KEY=your_api_key_here
 
 # Polling 활성화
 POLLING_ENABLED=true
-
-# 모니터링할 contact IDs (쉼표로 구분)
-POLLING_CONTACTS=123,456,789
 ```
 
 ### 2️⃣ 서버 실행
@@ -144,19 +141,5 @@ await this.natsClient.emit('message.received', {
 });
 ```
 
-## 🚀 다음 단계
-
-1. **실제 contact ID 설정하기**
-   - respond.io 대시보드에서 contact ID 확인
-   - `.env`의 `POLLING_CONTACTS`에 추가
-
-2. **테스트하기**
-   - 해당 contact로 메시지 전송
-   - 서버 로그에서 새 메시지 감지 확인
-
-3. **NATS 연동하기** (선택)
-   - starfruit과 통신 위해 NATS 추가
-
----
 
 **Polling 브랜치**: 현재 `polling` 브랜치에서 작업 중입니다.

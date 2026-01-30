@@ -1,6 +1,6 @@
 import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
 import { SendMessageDto } from './dto/send-message.dto';
-import { RespondIoService } from '@domain/respond-io/respond-io.service';
+import { RespondIoService } from '@modules/respond-io/respond-io.service';
 
 @Controller('api/messages')
 export class MessageController {
