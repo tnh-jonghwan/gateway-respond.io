@@ -14,7 +14,7 @@ export class MessagePollingService implements OnModuleInit {
 
   constructor(private readonly configService: ConfigService) {
     const API_TOKEN = this.configService.get<string>(ENV_KEYS.RESPOND_IO_API_KEY);
-    
+
     this.client = new RespondIO({
       apiToken: API_TOKEN,
       maxRetries: 3,
@@ -64,8 +64,7 @@ export class MessagePollingService implements OnModuleInit {
       for (const contact of contacts) {
         await this.syncContactMessages(String(contact.id));
 
-        // Rate Limiting 방지: 200ms 대기 (초당 5회 이하 유지)
-        await new Promise(resolve => setTimeout(resolve, 200));
+
       }
     } catch (error) {
       this.logger.error('Failed to fetch contact list', error.stack);
