@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate, ValidationError } from 'class-validator';
-import { Msg, PublishOptions, RequestOptions } from 'nats';
+import { Msg, PublishOptions, RequestOptions, Subscription } from 'nats';
 import { NatsProvider } from './nats.provider';
 
 interface HandlerOptions {
@@ -13,7 +13,7 @@ interface HandlerOptions {
 export class NatsService {
   private readonly logger = new Logger(NatsService.name);
 
-  constructor(private readonly natsProvider: NatsProvider) {}
+  constructor(private readonly natsProvider: NatsProvider) { }
 
   /**
    * Request/Reply Server: NATS 메시지를 구독하고 자동으로 응답
@@ -21,7 +21,7 @@ export class NatsService {
    * @param handlerOptions 핸들러 옵션 (handler, payloadSchema)
    */
   subscribeAndReply(subject: string, handlerOptions: HandlerOptions) {
-    const msgQueue = this.natsProvider.natsConnection.subscribe(subject, {
+    const msgQueue: Subscription = this.natsProvider.natsConnection.subscribe(subject, {
       queue: 'RESPONDIO_GATEWAY_QUEUE',
     });
 

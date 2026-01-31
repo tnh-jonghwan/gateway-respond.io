@@ -11,28 +11,25 @@ import { RespondIoService } from '@modules/respond-io/respond-io.service';
  * - Service Provider: respondio
  * - Service Requester: starfruit
  */
-@NatsHandler({ subject: 'respondio.starfruit' })
+@NatsHandler({ subject: 'respondio.pub' })
 @Injectable()
 export class MessageController {
   private readonly logger = new Logger(MessageController.name);
 
-  constructor(private readonly respondIoService: RespondIoService) {}
+  constructor(private readonly respondIoService: RespondIoService) { }
 
   /**
-   * 메시지 전송
-   * Subject: respondio.starfruit.req.message.send
+   * 메시지 전송 이벤트 구독 (Pub/Sub)
+   * Subject: respondio.pub.message.send
    */
   @NatsHandler({
-    subject: 'req.message.send',
+    subject: 'message.send',
     payloadSchema: SendMessageDto,
   })
   async sendMessage(dto: SendMessageDto) {
-    const result = await this.respondIoService.sendMessage(dto);
+    this.logger.log(`Received message send event for recipient: ${dto.recipientId}`);
 
-    return {
-      success: true,
-      messageId: result.messageId,
-      sentAt: new Date().toISOString(),
-    };
+    // Call API (No return value needed effectively)
+    await this.respondIoService.sendMessage(dto);
   }
 }
